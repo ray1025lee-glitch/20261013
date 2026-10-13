@@ -16,7 +16,7 @@ let canvas;                 // 宣告畫布全域變數
 
 // 你的 Google 試算表 CSV 連結對照表
 const sheetUrls = {
-  // 物理科普（目前先放佔位連結，之後你可以換成真實的物理試算表 CSV 連結）
+  // 物理科普（目前為佔位連結，請之後自行替換）
   physics: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS2PuVttEbQSfrgiEG_A7GgFvVtsN9nG-RcG5p59AnpJla6C-ORQtN2MWpjbPYjVrYaQFMpRCH2T25D/pub?output=csv',
   // 數學基本運算（剛才提供的連結）
   math: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSBupgugxGCLBHQIc0sM4b9osKaC-Heg-B4VfXD093IS0XgmG9Sh8XGKGHZjiQnKCK0YEILW17Va2Rl/pub?gid=0&single=true&output=csv'
@@ -174,6 +174,7 @@ function draw() {
     textAlign(CENTER, CENTER);
     text("正在從 Google 試算表載入題庫...", width / 2, height / 2);
     for (let btn of optionButtons) btn.hide();
+    nextButton.hide();
     return;
   }
 
@@ -184,6 +185,7 @@ function draw() {
     textAlign(CENTER, CENTER);
     text(errorMessage, width / 2, height / 2);
     for (let btn of optionButtons) btn.hide();
+    nextButton.hide();
     return;
   }
 
@@ -389,6 +391,8 @@ function handleAnswer(choice) {
     optionButtons[q.correct].style('border', '2px solid #4ade80');
   }
 
+  // 確保點擊後立刻顯示並重新定位「進入下一題」按鈕
+  updateLayout();
   nextButton.show();
 }
 
