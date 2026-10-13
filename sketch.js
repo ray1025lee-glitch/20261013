@@ -7,13 +7,88 @@ let isAnswered = false;
 let optionButtons = [];
 let nextButton;             
 let restartButton;          
-let isLoading = true;       
+let categoryPhysicsButton;  // 物理科普按鈕
+let categoryMathButton;     // 數學基本運算按鈕
+let isLoading = false;      // 一開始先不載入，等選擇分類後才載入
+let isSelectingCategory = true; // 是否正在選擇分類畫面
 let errorMessage = "";      // 用來顯示錯誤訊息
+let canvas;                 // 宣告畫布全域變數
 
-// 你的 Google 試算表 CSV 連結
-const sheetCSVUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS2PuVttEbQSfrgiEG_A7GgFvVtsN9nG-RcG5p59AnpJla6C-ORQtN2MWpjbPYjVrYaQFMpRCH2T25D/pub?output=csv';function preload() {
-  // 使用 p5.js 載入表格，並加入詳細的錯誤捕捉
-  loadTable(sheetCSVUrl, 'csv', 'header', 
+// 你的 Google 試算表 CSV 連結對照表
+const sheetUrls = {
+  // 物理科普（目前先放佔位連結，之後你可以換成真實的物理試算表 CSV 連結）
+  physics: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS2PuVttEbQSfrgiEG_A7GgFvVtsN9nG-RcG5p59AnpJla6C-ORQtN2MWpjbPYjVrYaQFMpRCH2T25D/pub?output=csv',
+  // 數學基本運算（剛才提供的連結）
+  math: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSBupgugxGCLBHQIc0sM4b9osKaC-Heg-B4VfXD093IS0XgmG9Sh8XGKGHZjiQnKCK0YEILW17Va2Rl/pub?gid=0&single=true&output=csv'
+};
+let currentSheetCSVUrl = '';
+
+function setup() {
+  let canvasWidth = min(windowWidth - 40, 650);
+  let canvasHeight = min(windowHeight - 120, 540);
+  canvas = createCanvas(canvasWidth, canvasHeight);
+  canvas.parent("quiz-container");
+ 
+  createOptionButtons();
+  
+  // 建立「物理科普」分類按鈕
+  categoryPhysicsButton = createButton("物理科普");
+  styleCategoryButton(categoryPhysicsButton);
+  categoryPhysicsButton.mousePressed(() => selectCategory('physics'));
+
+  // 建立「數學基本運算」分類按鈕
+  categoryMathButton = createButton("數學基本運算");
+  styleCategoryButton(categoryMathButton);
+  categoryMathButton.mousePressed(() => selectCategory('math'));
+
+  nextButton = createButton("進入下一題");
+  styleMainButton(nextButton);
+  nextButton.hide();
+  nextButton.mousePressed(goToNextQuestion);
+
+  restartButton = createButton("重新選擇分類");
+  styleMainButton(restartButton);
+  restartButton.hide();
+  restartButton.mousePressed(resetToCategorySelection);
+
+  updateLayout();
+}
+
+function styleCategoryButton(btn) {
+  btn.style('background-color', '#4f46e5');
+  btn.style('color', '#ffffff');
+  btn.style('border', 'none');
+  btn.style('border-radius', '12px');
+  btn.style('font-family', '"Noto Serif TC", serif');
+  btn.style('font-weight', '700');
+  btn.style('cursor', 'pointer');
+  btn.mouseOver(() => btn.style('background-color', '#4338ca'));
+  btn.mouseOut(() => btn.style('background-color', '#4f46e5'));
+}
+
+function styleMainButton(btn) {
+  btn.style('background-color', '#4f46e5');
+  btn.style('color', '#ffffff');
+  btn.style('border', 'none');
+  btn.style('border-radius', '10px');
+  btn.style('font-family', '"Noto Serif TC", serif');
+  btn.style('font-weight', '700');
+  btn.style('cursor', 'pointer');
+  btn.mouseOver(() => btn.style('background-color', '#4338ca'));
+  btn.mouseOut(() => btn.style('background-color', '#4f46e5'));
+}
+
+// 選擇分類並開始載入對應試算表
+function selectCategory(category) {
+  currentSheetCSVUrl = sheetUrls[category] + '&t=' + Date.now();
+  isSelectingCategory = false;
+  isLoading = true;
+  errorMessage = "";
+  
+  categoryPhysicsButton.hide();
+  categoryMathButton.hide();
+
+  loadTable(currentSheetCSVUrl, 'csv', 'header', 
     (table) => {
       allQuestions = table;
       isLoading = false;
@@ -32,47 +107,6 @@ const sheetCSVUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS2PuVttEbQ
   );
 }
 
-function setup() {
-  let canvasWidth = min(windowWidth - 40, 650);
-  let canvasHeight = min(windowHeight - 120, 520);
-  let canvas = createCanvas(canvasWidth, canvasHeight);
-  canvas.parent("quiz-container");
- 
-  // 初始化選項按鈕
-  createOptionButtons();
- 
-  // 初始化「下一題」按鈕
-  nextButton = createButton("進入下一題");
-  nextButton.style('background-color', '#4f46e5');
-  nextButton.style('color', '#ffffff');
-  nextButton.style('border', 'none');
-  nextButton.style('border-radius', '10px');
-  nextButton.style('font-family', '"Noto Serif TC", serif');
-  nextButton.style('font-weight', '700');
-  nextButton.style('cursor', 'pointer');
-  nextButton.hide();
-  nextButton.mousePressed(goToNextQuestion);
-  nextButton.mouseOver(() => nextButton.style('background-color', '#4338ca'));
-  nextButton.mouseOut(() => nextButton.style('background-color', '#4f46e5'));
-
-  // 初始化「重新測驗」按鈕
-  restartButton = createButton("重新測驗");
-  restartButton.style('background-color', '#4f46e5');
-  restartButton.style('color', '#ffffff');
-  restartButton.style('border', 'none');
-  restartButton.style('border-radius', '12px');
-  restartButton.style('font-family', '"Noto Serif TC", serif');
-  restartButton.style('font-weight', '700');
-  restartButton.style('cursor', 'pointer');
-  restartButton.hide();
-  restartButton.mousePressed(restartQuiz);
-  restartButton.mouseOver(() => restartButton.style('background-color', '#4338ca'));
-  restartButton.mouseOut(() => restartButton.style('background-color', '#4f46e5'));
-
-  updateLayout();
-}
-
-// 隨機抽題邏輯
 function initQuiz() {
   let rows = allQuestions.getRows();
   let tempQuestions = [];
@@ -109,30 +143,58 @@ function initQuiz() {
   if (quizQuestions.length > 0) {
     resetOptionButtonStyles();
     updateButtonText(0);
+    updateLayout(); 
   }
 }
 
 function draw() {
-  background(15, 23, 42); // Slate-900 背景
+  background(15, 23, 42); 
   textFont('Noto Serif TC');
 
+  // 1. 選擇分類畫面
+  if (isSelectingCategory) {
+    fill(255);
+    textSize(24);
+    textStyle(BOLD);
+    textAlign(CENTER, CENTER);
+    text("請選擇測驗主題", width / 2, height / 2 - 85);
+    
+    categoryPhysicsButton.show();
+    categoryMathButton.show();
+    for (let btn of optionButtons) btn.hide();
+    nextButton.hide();
+    restartButton.hide();
+    return;
+  }
+
+  // 2. 載入中畫面
   if (isLoading) {
     fill(255);
     textSize(18);
     textAlign(CENTER, CENTER);
     text("正在從 Google 試算表載入題庫...", width / 2, height / 2);
+    for (let btn of optionButtons) btn.hide();
     return;
   }
 
+  // 3. 錯誤訊息畫面
   if (errorMessage !== "") {
-    fill(248, 113, 113); // 紅色錯誤提示
+    fill(248, 113, 113);
     textSize(16);
     textAlign(CENTER, CENTER);
     text(errorMessage, width / 2, height / 2);
+    for (let btn of optionButtons) btn.hide();
     return;
   }
 
+  // 4. 測驗進行中與結算畫面
   if (currentQuestion < quizQuestions.length) {
+    if (quizQuestions.length > 0 && optionButtons.length === 4) {
+      let currentLabelCheck = optionButtons[0].html();
+      if (currentLabelCheck.endsWith(": ") || currentLabelCheck === "") {
+        updateButtonText(currentQuestion);
+      }
+    }
     drawQuizScreen();
     restartButton.hide();
   } else {
@@ -145,7 +207,6 @@ function draw() {
   }
 }
 
-// 繪製測驗畫面
 function drawQuizScreen() {
   let q = quizQuestions[currentQuestion];
   let isMobile = width < 480;
@@ -157,15 +218,15 @@ function drawQuizScreen() {
   text(`題目 ${currentQuestion + 1} / ${quizQuestions.length}`, 24, 20);
 
   fill(255);
-  textSize(isMobile ? 22 : 26);
+  textSize(isMobile ? 20 : 24);
   textStyle(BOLD);
-  text(q.prompt, 24, 55, width - 48);
+  text(q.prompt, 24, 50, width - 48);
 
   if (isAnswered) {
-    textSize(isMobile ? 15 : 17);
+    textSize(isMobile ? 14 : 16);
     textStyle(BOLD);
     let labels = ["A", "B", "C", "D"];
-    let feedbackY = height - 110;
+    let feedbackY = height - 55; 
    
     if (selectedOption === q.correct) {
       fill(74, 222, 128);
@@ -177,7 +238,6 @@ function drawQuizScreen() {
   }
 }
 
-// 繪製結算畫面
 function drawScoreScreen() {
   let isMobile = width < 480;
 
@@ -193,10 +253,9 @@ function drawScoreScreen() {
 
   fill(148, 163, 184);
   textSize(isMobile ? 14 : 16);
-  text("是否要重新測驗？", width / 2, height / 2 + 25);
+  text("要返回重新選擇分類嗎？", width / 2, height / 2 + 25);
 }
 
-// 建立四個選項按鈕
 function createOptionButtons() {
   let labels = ["A", "B", "C", "D"];
 
@@ -210,6 +269,7 @@ function createOptionButtons() {
     btn.style('font-weight', '600');
     btn.style('cursor', 'pointer');
     btn.style('text-align', 'left');
+    btn.hide();
    
     let index = i;
     btn.mousePressed(() => handleAnswer(index));
@@ -226,12 +286,14 @@ function createOptionButtons() {
 }
 
 function updateButtonText(qIndex) {
+  if (quizQuestions.length === 0 || !quizQuestions[qIndex]) return;
   let q = quizQuestions[qIndex];
   let labels = ["A", "B", "C", "D"];
   for (let i = 0; i < optionButtons.length; i++) {
     optionButtons[i].html(`${labels[i]}: ${q.options[i]}`);
     optionButtons[i].show();
   }
+  updateLayout(); 
 }
 
 function resetOptionButtonStyles() {
@@ -242,37 +304,65 @@ function resetOptionButtonStyles() {
 }
 
 function updateLayout() {
+  if (!canvas) return; 
+
   let canvasWidth = constrain(windowWidth - 40, 320, 650);
-  let canvasHeight = constrain(windowHeight - 140, 420, 540);
+  let canvasHeight = constrain(windowHeight - 140, 480, 620);
   resizeCanvas(canvasWidth, canvasHeight);
 
   let isMobile = canvasWidth < 480;
-  let btnWidth = canvasWidth - 48;
-  let btnHeight = isMobile ? 42 : 48;
-  let startY = isMobile ? 120 : 135;
-  let gap = isMobile ? 50 : 56;
-
   let canvasX = (windowWidth - canvasWidth) / 2;
   let canvasY = (windowHeight - canvasHeight) / 2 - 20;
+
+  // 調整分類按鈕的位置
+  if (categoryPhysicsButton && categoryMathButton) {
+    let catBtnWidth = isMobile ? canvasWidth - 48 : 260;
+    let catBtnHeight = isMobile ? 46 : 52;
+    
+    categoryPhysicsButton.size(catBtnWidth, catBtnHeight);
+    categoryPhysicsButton.position(canvasX + (canvasWidth - catBtnWidth) / 2, canvasY + height / 2 - 15);
+    categoryPhysicsButton.style('font-size', isMobile ? '16px' : '18px');
+
+    categoryMathButton.size(catBtnWidth, catBtnHeight);
+    categoryMathButton.position(canvasX + (canvasWidth - catBtnWidth) / 2, canvasY + height / 2 + 50);
+    categoryMathButton.style('font-size', isMobile ? '16px' : '18px');
+  }
+
+  let btnWidth = canvasWidth - 48;
+  let btnHeight = isMobile ? 40 : 44;
+  let gap = isMobile ? 48 : 52; 
+
+  let startY = 200; 
+  if (quizQuestions.length > 0 && currentQuestion < quizQuestions.length) {
+    let q = quizQuestions[currentQuestion];
+    let fontSize = isMobile ? 20 : 24;
+    let approxRows = Math.ceil((q.prompt.length * fontSize) / (canvasWidth - 48));
+    let promptHeight = approxRows * (fontSize + 6); 
+    startY = max(200, 50 + promptHeight + 20); 
+  }
 
   for (let i = 0; i < optionButtons.length; i++) {
     optionButtons[i].size(btnWidth, btnHeight);
     optionButtons[i].position(canvasX + 24, canvasY + startY + (i * gap));
-    optionButtons[i].style('font-size', isMobile ? '14px' : '16px');
-    optionButtons[i].style('padding-left', isMobile ? '12px' : '20px');
+    optionButtons[i].style('font-size', isMobile ? '14px' : '15px');
+    optionButtons[i].style('padding-left', isMobile ? '12px' : '16px');
   }
 
-  let nBtnWidth = isMobile ? canvasWidth - 48 : 200;
-  let nBtnHeight = isMobile ? 44 : 48;
- nextButton.size(nBtnWidth, nBtnHeight);
-  nextButton.position(canvasX + 24, canvasY + canvasHeight - 65);
-  nextButton.style('font-size', isMobile ? '15px' : '16px');
+  if (nextButton) {
+    let nBtnWidth = isMobile ? canvasWidth - 48 : 200;
+    let nBtnHeight = isMobile ? 42 : 46;
+    nextButton.size(nBtnWidth, nBtnHeight);
+    nextButton.position(canvasX + 24, canvasY + canvasHeight - 50);
+    nextButton.style('font-size', isMobile ? '15px' : '16px');
+  }
 
-  let rBtnWidth = isMobile ? 160 : 200;
-  let rBtnHeight = isMobile ? 44 : 50;
-  restartButton.size(rBtnWidth, rBtnHeight);
-  restartButton.position(windowWidth / 2 - rBtnWidth / 2, canvasY + canvasHeight / 2 + 50);
-  restartButton.style('font-size', isMobile ? '16px' : '18px');
+  if (restartButton) {
+    let rBtnWidth = isMobile ? 180 : 220;
+    let rBtnHeight = isMobile ? 44 : 50;
+    restartButton.size(rBtnWidth, rBtnHeight);
+    restartButton.position(windowWidth / 2 - rBtnWidth / 2, canvasY + canvasHeight / 2 + 100);
+    restartButton.style('font-size', isMobile ? '16px' : '18px');
+  }
 }
 
 function windowResized() {
@@ -314,23 +404,12 @@ function goToNextQuestion() {
   }
 }
 
-function restartQuiz() {
-  isLoading = true;
-  errorMessage = "";
-  loadTable(sheetCSVUrl, 'csv', 'header', 
-    (table) => {
-      allQuestions = table;
-      isLoading = false;
-      initQuiz();
-      nextButton.hide();
-      restartButton.hide();
-      resetOptionButtonStyles();
-      updateLayout();
-    }, 
-    (err) => {
-      isLoading = false;
-      errorMessage = "重新載入 Google 試算表失敗！";
-      console.error("重新載入失敗：", err);
-    }
-  );
+// 重新回到分類選擇畫面
+function resetToCategorySelection() {
+  isSelectingCategory = true;
+  restartButton.hide();
+  for (let btn of optionButtons) {
+    btn.hide();
+  }
+  updateLayout();
 }
